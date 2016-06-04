@@ -1775,6 +1775,23 @@ PKG_ENABLE_MODULES_VLC([DC1394], [], [libdc1394-2 >= 2.1.0], [IIDC FireWire inpu
 PKG_ENABLE_MODULES_VLC([DV1394], [], [libraw1394 >= 2.0.1 libavc1394 >= 0.5.3], [DV FireWire input module], [auto])
 
 dnl
+dnl - TODO make it more complete
+AC_ARG_ENABLE(cargo,
+    [AS_HELP_STRING([--enable-cargo],
+      [Enable rust-based plugins that require cargo to build (default disabled)])])
+
+AS_IF([test "${enable_cargo}" = "yes"], [
+  AC_CHECK_PROG(CARGO, [cargo], [yes], [no])
+  AC_CHECK_PROG(RUSTC, [rustc], [yes], [no])
+
+  AS_IF([test "$CARGO" != "yes" -o "$RUSTC" != "yes"], [
+    AC_MSG_FAILURE("Rust based plugins cannot be built $CARGO $RUSTC")
+  ])
+  VLC_ADD_PLUGIN([rust_pluging])
+])
+
+
+dnl
 dnl - linsys modules: access module check for libzvbi
 dnl
 AC_ARG_ENABLE(linsys,

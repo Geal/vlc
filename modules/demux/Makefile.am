@@ -461,3 +461,11 @@ demux_LTLIBRARIES += libadaptive_plugin.la
 libttml_plugin_la_SOURCES = demux/ttml.c
 demux_LTLIBRARIES += libttml_plugin.la
 
+librust_plugin.a:
+	cd $(srcdir)/demux/rust && CARGO_TARGET_DIR="$(abs_builddir)/.libs/" cargo build
+	mv $(abs_builddir)/.libs/debug/$< $<
+
+librust_plugin_la_LIBADD = librust_plugin.a
+
+demux_LTLIBRARIES += librust_plugin.la
+

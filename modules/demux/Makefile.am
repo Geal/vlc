@@ -469,7 +469,7 @@ librust_plugin.a: demux/rust/src/lib.rs
 
 rust_plugin.o: demux/rust/src/lib.rs
 	cd $(srcdir)/demux/rust && CARGO_TARGET_DIR="$(abs_builddir)/.libs/" cargo rustc -- --emit obj
-	mv $(abs_builddir)/.libs/debug/$@ $@
+	mv $(abs_builddir)/.libs/debug/deps/$@ $@
 
 am_librust1_plugin_la_OBJECTS = rust_plugin.o
 librust1_plugin_la_LIBADD = librust_plugin.a

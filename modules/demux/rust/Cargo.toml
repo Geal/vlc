@@ -1,0 +1,17 @@
+[package]
+name = "rust_plugin"
+version = "0.1.0"
+authors = ["Geoffroy Couprie <geo.couprie@gmail.com>", "Guillaume Gomez <guillaume1.gomez@gmail.com>", "Luca Barbato <lu_zero@gentoo.org>"]
+build = "build.rs"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+libc = "0.2.0"
+nom  = "1.2.3"
+vlc_module = { git = "https://github.com/Geal/vlc_module.rs.git" }
+va_list-rs = { git = "https://github.com/GuillaumeGomez/va_list-rs" }
+
+[dependencies.flavors]
+git = "https://github.com/Geal/flavors"

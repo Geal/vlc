@@ -1,13 +1,14 @@
-#![allow(non_camel_case_types, dead_code, non_snake_case)]
+#![allow(non_camel_case_types, dead_code, non_snake_case, unused_variables)]
 
 extern crate libc;
 extern crate core;
-extern crate nom;
-extern crate flavors;
+#[macro_use] extern crate nom;
 #[macro_use] extern crate va_list as rs_va_list;
 
 #[macro_use]
 extern crate vlc_module;
+
+mod parser;
 
 use libc::{size_t, c_int, c_void, c_uint, uint32_t, uint64_t, int64_t};
 use std::boxed::Box;
@@ -48,7 +49,7 @@ extern "C" fn open(p_demux: *mut demux_t<demux_sys_t>) -> c_int {
   let sl = stream_Peek(p_demux.s, 9);
   //vlc_Log!(p_demux, 0, PLUGIN_NAME, "got slice: %s\n\0", sl.as_ptr());
 
-  match flavors::parser::header(sl) {
+  match parser::header(sl) {
     nom::IResult::Error(_) => {
       vlc_Log!(p_demux, LogType::Info, PLUGIN_NAME, "parsing error");
     },
@@ -133,7 +134,7 @@ extern "C" fn demux(p_demux: *mut demux_t<demux_sys_t>) -> c_int {
     return -1;
   }
 
-  let r = flavors::parser::tag_header(&header[4..]);
+  let r = parser::tag_header(&header[4..]);
   match r {
     nom::IResult::Error(_) => {
       vlc_Log!(p_demux, LogType::Info, PLUGIN_NAME, "tag_header error");
@@ -155,7 +156,7 @@ extern "C" fn demux(p_demux: *mut demux_t<demux_sys_t>) -> c_int {
     p_sys.i_size = header.data_size as usize;
 
     match header.tag_type {
-      flavors::parser::TagType::Audio => {
+      parser::TagType::Audio => {
         //vlc_Log!(p_demux, LogType::Info, PLUGIN_NAME, "audio");
         let mut a_header = [0u8; 1];
         let sz = stream_Read(p_demux.s, &mut a_header);
@@ -163,7 +164,7 @@ extern "C" fn demux(p_demux: *mut demux_t<demux_sys_t>) -> c_int {
           return -1;
         }
 
-        if let nom::IResult::Done(_, audio_header) = flavors::parser::audio_data_header(&a_header) {
+        if let nom::IResult::Done(_, audio_header) = parser::audio_data_header(&a_header) {
           vlc_Log!(p_demux, LogType::Info, PLUGIN_NAME,
                    "audio format: {:?}, rate: {:?}, size: {:?}, type: {:?}",
                    audio_header.sound_format,
@@ -176,19 +177,19 @@ extern "C" fn demux(p_demux: *mut demux_t<demux_sys_t>) -> c_int {
                            es_format_category_e::AUDIO_ES,
                            audio_codec_id_to_fourcc(audio_header.sound_format));
             p_sys.audio_es_format.audio.i_channels = match audio_header.sound_type {
-              flavors::parser::SoundType::SndMono   => 1,
-              flavors::parser::SoundType::SndStereo => 2,
+              parser::SoundType::SndMono   => 1,
+              parser::SoundType::SndStereo => 2,
             };
 
             p_sys.audio_es_format.audio.i_rate = match audio_header.sound_rate {
-              flavors::parser::SoundRate::_5_5KHZ => 5500,
-              flavors::parser::SoundRate::_11KHZ  => 11000,
-              flavors::parser::SoundRate::_22KHZ  => 22050,
-              flavors::parser::SoundRate::_44KHZ  => 44000,
+              parser::SoundRate::_5_5KHZ => 5500,
+              parser::SoundRate::_11KHZ  => 11000,
+              parser::SoundRate::_22KHZ  => 22050,
+              parser::SoundRate::_44KHZ  => 44000,
             };
             p_sys.audio_es_format.audio.i_bitspersample = match audio_header.sound_size {
-              flavors::parser::SoundSize::Snd8bit => 8,
-              flavors::parser::SoundSize::Snd16bit => 16,
+              parser::SoundSize::Snd8bit  => 8,
+              parser::SoundSize::Snd16bit => 16,
             };
             p_sys.audio_es_format.i_bitrate =
               (p_sys.video_es_format.audio.i_rate * p_sys.video_es_format
@@ -223,14 +224,14 @@ extern "C" fn demux(p_demux: *mut demux_t<demux_sys_t>) -> c_int {
         }
         return -1;
       },
-      flavors::parser::TagType::Script => {
+      parser::TagType::Script => {
         if stream_Seek(p_demux.s, header.data_size as uint64_t) {
           //vlc_Log!(p_demux, LogType::Info, PLUGIN_NAME, "advancing {} bytes\n",
           //         header.data_size);
         }
         return 1;
       },
-      flavors::parser::TagType::Video => {
+      parser::TagType::Video => {
         let mut v_header = [0u8; 1];
         let sz = stream_Read(p_demux.s, &mut v_header);
         if sz < 1 {
@@ -238,7 +239,7 @@ extern "C" fn demux(p_demux: *mut demux_t<demux_sys_t>) -> c_int {
                    "could not read header, got: {} bytes", sz);
           return -1;
         }
-        if let nom::IResult::Done(_, vheader) = flavors::parser::video_data_header(&v_header) {
+        if let nom::IResult::Done(_, vheader) = parser::video_data_header(&v_header) {
           vlc_Log!(p_demux, LogType::Info, PLUGIN_NAME, "frame type: {:?}, codec id: {:?}",
                    vheader.frame_type, vheader.codec_id);
 
@@ -295,32 +296,32 @@ extern "C" fn control(p_demux: *mut demux_t<demux_sys_t>, i_query: c_int,
   res
 }
 
-pub fn audio_codec_id_to_fourcc(id: flavors::parser::SoundFormat) -> vlc_fourcc_t {
+pub fn audio_codec_id_to_fourcc(id: parser::SoundFormat) -> vlc_fourcc_t {
   match id {
-    flavors::parser::SoundFormat::PCM_BE                => vlc_fourcc!('l','p','c','m'),
-    flavors::parser::SoundFormat::ADPCM                 => vlc_fourcc!('S','W','F','a'),
-    flavors::parser::SoundFormat::MP3                   => vlc_fourcc!('m','p','3',' '),
-    flavors::parser::SoundFormat::PCM_LE                => vlc_fourcc!('l','p','c','m'),
-    flavors::parser::SoundFormat::NELLYMOSER_16KHZ_MONO => vlc_fourcc!('N','E','L','L'),
-    flavors::parser::SoundFormat::NELLYMOSER_8KHZ_MONO  => vlc_fourcc!('N','E','L','L'),
-    flavors::parser::SoundFormat::NELLYMOSER            => vlc_fourcc!('N','E','L','L'),
-    flavors::parser::SoundFormat::PCM_ALAW              => vlc_fourcc!('a','l','a','w'),
-    flavors::parser::SoundFormat::PCM_ULAW              => vlc_fourcc!('u','l','a','w'),
-    flavors::parser::SoundFormat::AAC                   => vlc_fourcc!('m','p','4','a'),
-    flavors::parser::SoundFormat::SPEEX                 => vlc_fourcc!('s','p','x',' '),
-    flavors::parser::SoundFormat::MP3_8KHZ              => vlc_fourcc!('m','p','3',' '),
-    flavors::parser::SoundFormat::DEVICE_SPECIFIC       => vlc_fourcc!('u','n','d','f'),
+    parser::SoundFormat::PCM_BE                => vlc_fourcc!('l','p','c','m'),
+    parser::SoundFormat::ADPCM                 => vlc_fourcc!('S','W','F','a'),
+    parser::SoundFormat::MP3                   => vlc_fourcc!('m','p','3',' '),
+    parser::SoundFormat::PCM_LE                => vlc_fourcc!('l','p','c','m'),
+    parser::SoundFormat::NELLYMOSER_16KHZ_MONO => vlc_fourcc!('N','E','L','L'),
+    parser::SoundFormat::NELLYMOSER_8KHZ_MONO  => vlc_fourcc!('N','E','L','L'),
+    parser::SoundFormat::NELLYMOSER            => vlc_fourcc!('N','E','L','L'),
+    parser::SoundFormat::PCM_ALAW              => vlc_fourcc!('a','l','a','w'),
+    parser::SoundFormat::PCM_ULAW              => vlc_fourcc!('u','l','a','w'),
+    parser::SoundFormat::AAC                   => vlc_fourcc!('m','p','4','a'),
+    parser::SoundFormat::SPEEX                 => vlc_fourcc!('s','p','x',' '),
+    parser::SoundFormat::MP3_8KHZ              => vlc_fourcc!('m','p','3',' '),
+    parser::SoundFormat::DEVICE_SPECIFIC       => vlc_fourcc!('u','n','d','f'),
   }
 }
 
-pub fn video_codec_id_to_fourcc(id: flavors::parser::CodecId) -> vlc_fourcc_t {
+pub fn video_codec_id_to_fourcc(id: parser::CodecId) -> vlc_fourcc_t {
   match id {
-  flavors::parser::CodecId::JPEG    => vlc_fourcc!('j','p','e','g'),
-  flavors::parser::CodecId::H263    => vlc_fourcc!('F','L','V','1'),
-  flavors::parser::CodecId::SCREEN  => vlc_fourcc!('F','S','V','1'),
-  flavors::parser::CodecId::VP6     => vlc_fourcc!('V','P','6','F'),
-  flavors::parser::CodecId::VP6A    => vlc_fourcc!('V','P','6','A'),
-  flavors::parser::CodecId::SCREEN2 => vlc_fourcc!('F','S','V','2'),
-  flavors::parser::CodecId::H264    => vlc_fourcc!('h','2','6','4'),
+  parser::CodecId::JPEG    => vlc_fourcc!('j','p','e','g'),
+  parser::CodecId::H263    => vlc_fourcc!('F','L','V','1'),
+  parser::CodecId::SCREEN  => vlc_fourcc!('F','S','V','1'),
+  parser::CodecId::VP6     => vlc_fourcc!('V','P','6','F'),
+  parser::CodecId::VP6A    => vlc_fourcc!('V','P','6','A'),
+  parser::CodecId::SCREEN2 => vlc_fourcc!('F','S','V','2'),
+  parser::CodecId::H264    => vlc_fourcc!('h','2','6','4'),
   }
 }

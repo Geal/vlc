@@ -12,9 +12,6 @@ libc = "^0.2.0"
 nom  = "^2.0.0"
 va_list-rs = { git = "https://github.com/GuillaumeGomez/va_list-rs" }
 
-[dependencies.flavors]
-git = "https://github.com/Geal/flavors"
-
 [dependencies.vlc_module]
 git = "https://github.com/Geal/vlc_module.rs.git"
 default-features = false

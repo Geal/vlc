@@ -464,12 +464,12 @@ demux_LTLIBRARIES += libttml_plugin.la
 librust1_plugin_la_SOURCES = ""
 
 librust_plugin.a: demux/rust/src/lib.rs
-	cd $(srcdir)/demux/rust && CARGO_TARGET_DIR="$(abs_builddir)/.libs/" cargo build -v
-	mv $(abs_builddir)/.libs/debug/$@ $@
+	cd $(srcdir)/demux/rust && CARGO_TARGET_DIR="$(abs_builddir)/.libs/" cargo build --release -v
+	mv $(abs_builddir)/.libs/release/$@ $@
 
 rust_plugin.o: demux/rust/src/lib.rs
-	cd $(srcdir)/demux/rust && CARGO_TARGET_DIR="$(abs_builddir)/.libs/" cargo rustc -- --emit obj
-	mv $(abs_builddir)/.libs/debug/deps/$@ $@
+	cd $(srcdir)/demux/rust && CARGO_TARGET_DIR="$(abs_builddir)/.libs/" cargo rustc --release -- --emit obj
+	mv $(abs_builddir)/.libs/release/deps/rust_plugin*.o $@
 
 am_librust1_plugin_la_OBJECTS = rust_plugin.o
 librust1_plugin_la_LIBADD = librust_plugin.a
